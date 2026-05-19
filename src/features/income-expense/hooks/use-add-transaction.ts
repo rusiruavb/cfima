@@ -13,7 +13,6 @@ export function useAddTransaction() {
         amount: data.amount,
         description: data.description,
         financeType: data.financeType,
-        file: data.file,
       }),
     onSuccess: () => {
       void queryClient.invalidateQueries({ queryKey: INCOME_EXPENSE_QUERY_KEY });

@@ -23,8 +23,8 @@ import {
   type TransactionFormValues,
 } from "@/features/income-expense/schemas/transaction-schema";
 import { FINANCE_TYPES } from "@/shared/constants/sheets";
+import { AmountInput } from "@/shared/components/amount-input";
 import { DatePickerField } from "@/shared/components/date-picker-field";
-import { FileUpload } from "@/shared/components/file-upload";
 
 export function IncomeExpenseForm() {
   const addMutation = useAddTransaction();
@@ -32,10 +32,8 @@ export function IncomeExpenseForm() {
     resolver: zodResolver(transactionSchema),
     defaultValues: {
       date: new Date(),
-      amount: 0,
       description: "",
       financeType: "Expense",
-      file: null,
     },
   });
 
@@ -44,10 +42,8 @@ export function IncomeExpenseForm() {
       onSuccess: () => {
         form.reset({
           date: new Date(),
-          amount: 0,
           description: "",
           financeType: "Expense",
-          file: null,
         });
       },
     });
@@ -79,13 +75,7 @@ export function IncomeExpenseForm() {
             <FormItem className="w-full min-w-0 flex-1 md:min-w-[120px]">
               <FormLabel>Amount</FormLabel>
               <FormControl>
-                <Input
-                  type="number"
-                  step="0.01"
-                  className="font-mono-numeric"
-                  {...field}
-                  onChange={(e) => field.onChange(e.target.value)}
-                />
+                <AmountInput value={field.value} onChange={field.onChange} />
               </FormControl>
               <FormMessage />
             </FormItem>
@@ -125,21 +115,6 @@ export function IncomeExpenseForm() {
                 </SelectContent>
               </Select>
               <FormMessage />
-            </FormItem>
-          )}
-        />
-        <FormField
-          control={form.control}
-          name="file"
-          render={({ field }) => (
-            <FormItem>
-              <FormLabel>File</FormLabel>
-              <FormControl>
-                <FileUpload
-                  selectedFile={field.value}
-                  onFileSelect={field.onChange}
-                />
-              </FormControl>
             </FormItem>
           )}
         />

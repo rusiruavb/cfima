@@ -7,7 +7,7 @@ export function IncomeExpensePage() {
       <div>
         <h1 className="text-xl font-semibold text-primary sm:text-2xl">Income & Expense</h1>
         <p className="text-sm text-muted-foreground">
-          Track transactions synced with Google Sheets
+          Track actual income and expense transactions
         </p>
       </div>
       <IncomeExpenseForm />

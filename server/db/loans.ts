@@ -1,4 +1,5 @@
 import { randomUUID } from "node:crypto";
+import { exportBudgetData } from "./budget.js";
 import { getDb } from "./index.js";
 import { deleteAttachment } from "./attachments.js";
 
@@ -219,5 +220,6 @@ export function exportAllData() {
     exportedAt: new Date().toISOString(),
     transactions,
     loans,
+    budget: exportBudgetData(),
   };
 }

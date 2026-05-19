@@ -1,4 +1,5 @@
 import {
+  CalendarRange,
   Download,
   LayoutDashboard,
   Receipt,
@@ -11,7 +12,18 @@ import { downloadExport } from "@/shared/lib/api";
 import { cn } from "@/shared/lib/utils";
 
 const navItems = [
-  { to: "/income-expense", label: "Income & Expense", shortLabel: "Ledger", icon: Receipt },
+  {
+    to: "/income-expense",
+    label: "Income & Expense",
+    shortLabel: "Ledger",
+    icon: Receipt,
+  },
+  {
+    to: "/budget",
+    label: "Monthly Budget",
+    shortLabel: "Budget",
+    icon: CalendarRange,
+  },
   { to: "/loans", label: "Loans", shortLabel: "Loans", icon: Landmark },
   { to: "/summary", label: "Summary", shortLabel: "Summary", icon: TrendingUp },
 ] as const;
@@ -70,7 +82,7 @@ export function AppLayout() {
         <div className="flex items-center justify-between gap-2 border-b border-primary/20 px-6 py-5">
           <div className="flex items-center gap-2">
             <LayoutDashboard className="h-6 w-6 text-primary" />
-            <span className="text-lg font-semibold text-primary">CFIMA</span>
+            <span className="text-lg font-semibold text-primary">CFiMa</span>
           </div>
         </div>
         <nav className="flex flex-1 flex-col gap-1 p-4">
@@ -93,7 +105,9 @@ export function AppLayout() {
       <div className="flex min-h-0 min-w-0 flex-1 flex-col">
         <header className="no-print sticky top-0 z-30 flex items-center gap-2 border-b border-primary/20 bg-secondary px-4 py-3 lg:hidden">
           <LayoutDashboard className="h-6 w-6 shrink-0 text-primary" />
-          <span className="flex-1 text-lg font-semibold text-primary">CFIMA</span>
+          <span className="flex-1 text-lg font-semibold text-primary">
+            CFiMa
+          </span>
           <Button
             variant="ghost"
             size="icon"
