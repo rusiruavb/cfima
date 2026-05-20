@@ -1,17 +1,3 @@
-CREATE TABLE IF NOT EXISTS transactions (
-  id INTEGER PRIMARY KEY AUTOINCREMENT,
-  date TEXT NOT NULL,
-  amount REAL NOT NULL,
-  description TEXT NOT NULL DEFAULT '',
-  finance_type TEXT NOT NULL CHECK (finance_type IN ('Income', 'Expense')),
-  category TEXT,
-  loan_payment_id INTEGER REFERENCES loan_payments(id) ON DELETE SET NULL,
-  attachment_path TEXT,
-  attachment_name TEXT,
-  created_at TEXT NOT NULL DEFAULT (datetime('now')),
-  updated_at TEXT NOT NULL DEFAULT (datetime('now'))
-);
-
 CREATE TABLE IF NOT EXISTS loans (
   id TEXT PRIMARY KEY,
   name TEXT NOT NULL UNIQUE,
@@ -31,7 +17,7 @@ CREATE TABLE IF NOT EXISTS loan_payments (
   principal_amount REAL NOT NULL,
   interest_amount REAL NOT NULL,
   remaining_balance REAL NOT NULL,
-  transaction_id INTEGER REFERENCES transactions(id) ON DELETE SET NULL,
+  budget_line_id INTEGER,
   attachment_path TEXT,
   attachment_name TEXT,
   status TEXT NOT NULL DEFAULT 'pending' CHECK (status IN ('pending', 'paid')),
@@ -66,6 +52,7 @@ CREATE TABLE IF NOT EXISTS monthly_budgets (
   created_at TEXT NOT NULL DEFAULT (datetime('now'))
 );
 
+-- Single source of truth for month sheet and ledger (planned + paid rows).
 CREATE TABLE IF NOT EXISTS monthly_budget_lines (
   id INTEGER PRIMARY KEY AUTOINCREMENT,
   monthly_budget_id INTEGER NOT NULL REFERENCES monthly_budgets(id) ON DELETE CASCADE,
@@ -77,20 +64,22 @@ CREATE TABLE IF NOT EXISTS monthly_budget_lines (
   item_type TEXT NOT NULL DEFAULT 'regular' CHECK (item_type IN ('regular', 'fixed_deposit')),
   savings_bucket TEXT NOT NULL DEFAULT 'savings' CHECK (savings_bucket IN ('savings', 'one_off')),
   feature_category TEXT,
+  loan_payment_id INTEGER,
   planned_date TEXT,
+  entry_date TEXT,
   fixed_deposit_date TEXT,
   fixed_deposit_maturity_months INTEGER,
   fixed_deposit_interest_rate REAL,
+  attachment_path TEXT,
+  attachment_name TEXT,
   sort_order INTEGER NOT NULL DEFAULT 0,
   status TEXT NOT NULL DEFAULT 'planned' CHECK (status IN ('planned', 'paid', 'skipped')),
-  transaction_id INTEGER REFERENCES transactions(id) ON DELETE SET NULL,
   paid_at TEXT,
   created_at TEXT NOT NULL DEFAULT (datetime('now')),
   updated_at TEXT NOT NULL DEFAULT (datetime('now'))
 );
 
-CREATE INDEX IF NOT EXISTS idx_transactions_date ON transactions(date);
 CREATE INDEX IF NOT EXISTS idx_loan_payments_loan_id ON loan_payments(loan_id);
 CREATE INDEX IF NOT EXISTS idx_monthly_budgets_year_month ON monthly_budgets(year_month);
 CREATE INDEX IF NOT EXISTS idx_monthly_budget_lines_budget_id ON monthly_budget_lines(monthly_budget_id);
-CREATE INDEX IF NOT EXISTS idx_monthly_budget_lines_transaction_id ON monthly_budget_lines(transaction_id);
+-- Indexes on columns added by migrations (budget_line_id, entry_date) are created in ensureIndexes().

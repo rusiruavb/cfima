@@ -1,13 +1,9 @@
-import {
-  CalendarRange,
-  Download,
-  LayoutDashboard,
-  Landmark,
-  TrendingUp,
-} from "lucide-react";
+import { CalendarRange, Download, Landmark, TrendingUp } from "lucide-react";
 import type { LucideIcon } from "lucide-react";
 import { NavLink, Outlet } from "react-router-dom";
 import { Button } from "@/components/ui/button";
+import { AppLogo } from "@/shared/components/app-logo";
+import { ThemeToggle } from "@/shared/components/theme-toggle";
 import { downloadExport } from "@/shared/lib/api";
 import { cn } from "@/shared/lib/utils";
 
@@ -71,11 +67,11 @@ function NavItem({
 
 export function AppLayout() {
   return (
-    <div className="flex min-h-screen flex-col bg-background lg:flex-row">
-      <aside className="no-print hidden w-64 shrink-0 flex-col border-r border-primary/20 bg-secondary lg:flex">
+    <div className="flex h-dvh flex-col overflow-hidden bg-background print:h-auto print:overflow-visible lg:flex-row">
+      <aside className="no-print hidden h-full w-64 shrink-0 flex-col overflow-hidden border-r border-primary/20 bg-sidebar lg:flex">
         <div className="flex items-center justify-between gap-2 border-b border-primary/20 px-6 py-5">
-          <div className="flex items-center gap-2">
-            <LayoutDashboard className="h-6 w-6 text-primary" />
+          <div className="flex items-center gap-2.5">
+            <AppLogo className="h-8" />
             <span className="text-lg font-semibold text-primary">Monthly</span>
           </div>
         </div>
@@ -84,7 +80,8 @@ export function AppLayout() {
             <NavItem key={to} to={to} label={label} icon={icon} />
           ))}
         </nav>
-        <div className="border-t border-primary/20 p-4">
+        <div className="space-y-3 border-t border-primary/20 p-4">
+          <ThemeToggle />
           <Button
             variant="outline"
             className="w-full gap-2 border-primary/30 text-primary"
@@ -96,12 +93,13 @@ export function AppLayout() {
         </div>
       </aside>
 
-      <div className="flex min-h-0 min-w-0 flex-1 flex-col">
-        <header className="no-print sticky top-0 z-30 flex items-center gap-2 border-b border-primary/20 bg-secondary px-4 py-3 lg:hidden">
-          <LayoutDashboard className="h-6 w-6 shrink-0 text-primary" />
+      <div className="flex min-h-0 min-w-0 flex-1 flex-col overflow-hidden print:overflow-visible">
+        <header className="no-print sticky top-0 z-30 flex items-center gap-2 border-b border-primary/20 bg-sidebar px-4 py-3 lg:hidden">
+          <AppLogo className="h-8" />
           <span className="flex-1 text-lg font-semibold text-primary">
             Monthly
           </span>
+          <ThemeToggle compact />
           <Button
             variant="ghost"
             size="icon"
@@ -113,7 +111,7 @@ export function AppLayout() {
           </Button>
         </header>
 
-        <main className="min-w-0 flex-1 overflow-auto p-4 pb-[calc(4.5rem+env(safe-area-inset-bottom))] sm:p-5 lg:p-6 lg:pb-8 xl:p-8">
+        <main className="min-h-0 min-w-0 flex-1 overflow-y-auto p-4 pb-[calc(4.5rem+env(safe-area-inset-bottom))] print:overflow-visible sm:p-5 lg:p-6 lg:pb-8 xl:p-8">
           <div className="mx-auto w-full max-w-6xl">
             <Outlet />
           </div>
@@ -121,7 +119,7 @@ export function AppLayout() {
       </div>
 
       <nav
-        className="no-print fixed inset-x-0 bottom-0 z-40 flex border-t border-primary/20 bg-secondary px-2 pb-[env(safe-area-inset-bottom)] pt-1 lg:hidden"
+        className="no-print fixed inset-x-0 bottom-0 z-40 flex border-t border-primary/20 bg-sidebar px-2 pb-[env(safe-area-inset-bottom)] pt-1 lg:hidden"
         aria-label="Main navigation"
       >
         {navItems.map(({ to, shortLabel, icon }) => (

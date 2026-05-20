@@ -2,7 +2,7 @@ import { randomUUID } from "node:crypto";
 import { exportBudgetData } from "./budget.js";
 import { getDb } from "./index.js";
 import { deleteAttachment } from "./attachments.js";
-import { listTransactions } from "./transactions.js";
+import { listLedgerEntries } from "./budget.js";
 
 export type LoanRow = {
   id: string;
@@ -25,6 +25,7 @@ export type PaymentRow = {
   attachment_name: string | null;
   status: string;
   transaction_id: number | null;
+  budget_line_id: number | null;
 };
 
 export function listLoans(): LoanRow[] {
@@ -49,7 +50,8 @@ export function listPayments(loanId: string): PaymentRow[] {
   return getDb()
     .prepare(
       `SELECT id, loan_id, sort_order, month_label, payment_amount, principal_amount,
-              interest_amount, remaining_balance, attachment_path, attachment_name, status, transaction_id
+              interest_amount, remaining_balance, attachment_path, attachment_name, status,
+              transaction_id, budget_line_id
        FROM loan_payments WHERE loan_id = ? ORDER BY sort_order`,
     )
     .all(loanId) as PaymentRow[];
@@ -59,7 +61,8 @@ export function getPayment(id: number): PaymentRow | undefined {
   return getDb()
     .prepare(
       `SELECT id, loan_id, sort_order, month_label, payment_amount, principal_amount,
-              interest_amount, remaining_balance, attachment_path, attachment_name, status, transaction_id
+              interest_amount, remaining_balance, attachment_path, attachment_name, status,
+              transaction_id, budget_line_id
        FROM loan_payments WHERE id = ?`,
     )
     .get(id) as PaymentRow | undefined;
@@ -212,37 +215,36 @@ export function updatePaymentAttachment(
     .run(attachmentPath, attachmentName, id);
 }
 
-export function linkPaymentToTransaction(paymentId: number, transactionId: number): void {
+export function linkPaymentToBudgetLine(paymentId: number, budgetLineId: number): void {
   const payment = getPayment(paymentId);
   if (!payment) throw new Error("Payment not found");
 
   getDb()
     .prepare(
       `UPDATE loan_payments
-       SET status = 'paid', transaction_id = ?
+       SET status = 'paid', budget_line_id = ?
        WHERE id = ?`,
     )
-    .run(transactionId, paymentId);
+    .run(budgetLineId, paymentId);
 }
 
-export function unlinkPaymentTransaction(paymentId: number, transactionId: number): void {
+export function unlinkPaymentBudgetLine(paymentId: number, budgetLineId: number): void {
   const payment = getPayment(paymentId);
   if (!payment) return;
 
-  // Only undo if we still point to this transaction
-  if (payment.transaction_id !== transactionId) return;
+  if (payment.budget_line_id !== budgetLineId) return;
 
   getDb()
     .prepare(
       `UPDATE loan_payments
-       SET status = 'pending', transaction_id = NULL
+       SET status = 'pending', budget_line_id = NULL
        WHERE id = ?`,
     )
     .run(paymentId);
 }
 
 export function exportAllData() {
-  const transactions = listTransactions();
+  const transactions = listLedgerEntries();
   const loans = listLoans().map((loan) => ({
     ...loan,
     payments: listPayments(loan.id),

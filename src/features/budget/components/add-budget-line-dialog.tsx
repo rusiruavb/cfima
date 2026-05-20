@@ -1,6 +1,6 @@
 import { zodResolver } from "@hookform/resolvers/zod";
 import { format } from "date-fns";
-import { useEffect, useState } from "react";
+import { useEffect, useMemo, useState } from "react";
 import { useForm } from "react-hook-form";
 import { Button } from "@/components/ui/button";
 import {
@@ -30,8 +30,13 @@ import {
   budgetLineSchema,
   type BudgetLineFormValues,
 } from "@/features/budget/schemas/budget-schema";
-import { SECTION_LABELS, SECTION_ORDER } from "@/features/budget/lib/section-labels";
+import {
+  CATEGORY_LABELS,
+  CATEGORY_ORDER,
+  LOANS_CATEGORY,
+} from "@/features/budget/lib/section-labels";
 import type { BudgetSection } from "@/features/budget/types/budget";
+import { useLoans } from "@/features/loans/hooks/use-loans";
 import { AmountInput } from "@/shared/components/amount-input";
 import { DatePickerField } from "@/shared/components/date-picker-field";
 import { FINANCE_TYPES } from "@/shared/constants/sheets";
@@ -64,6 +69,7 @@ export function AddBudgetLineDialog({
   onSubmit,
   isPending,
 }: AddBudgetLineDialogProps) {
+  const { data: loans = [] } = useLoans();
   const form = useForm<BudgetLineFormValues>({
     resolver: zodResolver(budgetLineSchema),
     defaultValues: {
@@ -76,6 +82,8 @@ export function AddBudgetLineDialog({
       itemType: "regular",
       savingsBucket: "savings",
       featureCategory: null,
+      loanId: null,
+      loanPaymentId: null,
       fixedDepositDate: null,
       fixedDepositMaturityMonths: null,
       fixedDepositInterestRate: null,
@@ -83,6 +91,18 @@ export function AddBudgetLineDialog({
   });
 
   const selectedSection = form.watch("section");
+  const selectedLoanId = form.watch("loanId");
+  const selectedLoanPaymentId = form.watch("loanPaymentId");
+  const selectedLoan = useMemo(
+    () => loans.find((l) => l.id === selectedLoanId) ?? null,
+    [loans, selectedLoanId],
+  );
+  const selectedPayment = useMemo(
+    () =>
+      selectedLoan?.payments.find((p) => p.rowIndex === selectedLoanPaymentId) ?? null,
+    [selectedLoan, selectedLoanPaymentId],
+  );
+  const isLoansCategory = selectedSection === LOANS_CATEGORY;
   const itemType = form.watch("itemType") ?? "regular";
   const isFixedDeposit = selectedSection === "savings" && itemType === "fixed_deposit";
   const featureCategory = form.watch("featureCategory") ?? null;
@@ -112,6 +132,8 @@ export function AddBudgetLineDialog({
         itemType: "regular",
         savingsBucket: "savings",
         featureCategory: null,
+        loanId: null,
+        loanPaymentId: null,
         fixedDepositDate: null,
         fixedDepositMaturityMonths: null,
         fixedDepositInterestRate: null,
@@ -119,6 +141,31 @@ export function AddBudgetLineDialog({
       setFeatureCategoryMode("none");
     }
   }, [open, defaultSection, form]);
+
+  useEffect(() => {
+    if (!isLoansCategory) {
+      form.setValue("loanId", null, { shouldValidate: true });
+      form.setValue("loanPaymentId", null, { shouldValidate: true });
+      return;
+    }
+    form.setValue("itemType", "regular", { shouldValidate: true });
+    form.setValue("fixedDepositDate", null, { shouldValidate: true });
+    form.setValue("fixedDepositMaturityMonths", null, { shouldValidate: true });
+    form.setValue("fixedDepositInterestRate", null, { shouldValidate: true });
+    if (form.getValues("financeType") !== "Expense") {
+      form.setValue("financeType", "Expense", { shouldValidate: true });
+    }
+  }, [isLoansCategory, form]);
+
+  useEffect(() => {
+    if (!isLoansCategory) return;
+    form.setValue("loanPaymentId", null, { shouldValidate: true });
+  }, [isLoansCategory, selectedLoanId, form]);
+
+  useEffect(() => {
+    if (!isLoansCategory || !selectedPayment) return;
+    form.setValue("amount", selectedPayment.paymentAmount, { shouldValidate: true });
+  }, [isLoansCategory, selectedPayment, form]);
 
   return (
     <Dialog open={open} onOpenChange={onOpenChange}>
@@ -133,6 +180,108 @@ export function AddBudgetLineDialog({
           >
             <FormField
               control={form.control}
+              name="section"
+              render={({ field }) => (
+                <FormItem>
+                  <FormLabel>Category</FormLabel>
+                  <Select onValueChange={field.onChange} value={field.value}>
+                    <FormControl>
+                      <SelectTrigger>
+                        <SelectValue />
+                      </SelectTrigger>
+                    </FormControl>
+                    <SelectContent>
+                      {CATEGORY_ORDER.map((s) => (
+                        <SelectItem key={s} value={s}>
+                          {CATEGORY_LABELS[s]}
+                        </SelectItem>
+                      ))}
+                    </SelectContent>
+                  </Select>
+                  <FormMessage />
+                </FormItem>
+              )}
+            />
+
+            {isLoansCategory ? (
+              <>
+                <FormField
+                  control={form.control}
+                  name="loanId"
+                  render={({ field }) => (
+                    <FormItem>
+                      <FormLabel>Loan</FormLabel>
+                      <Select
+                        onValueChange={(v) => field.onChange(v)}
+                        value={field.value ?? ""}
+                      >
+                        <FormControl>
+                          <SelectTrigger>
+                            <SelectValue placeholder="Select a loan" />
+                          </SelectTrigger>
+                        </FormControl>
+                        <SelectContent>
+                          {loans.map((l) => (
+                            <SelectItem key={l.id} value={l.id}>
+                              {l.name}
+                            </SelectItem>
+                          ))}
+                        </SelectContent>
+                      </Select>
+                      <FormMessage />
+                    </FormItem>
+                  )}
+                />
+                <FormField
+                  control={form.control}
+                  name="loanPaymentId"
+                  render={({ field }) => (
+                    <FormItem>
+                      <FormLabel>Loan amount</FormLabel>
+                      <Select
+                        onValueChange={(v) => field.onChange(Number(v))}
+                        value={field.value != null ? String(field.value) : ""}
+                        disabled={!selectedLoan}
+                      >
+                        <FormControl>
+                          <SelectTrigger>
+                            <SelectValue
+                              placeholder={
+                                selectedLoan ? "Select installment" : "Select a loan first"
+                              }
+                            />
+                          </SelectTrigger>
+                        </FormControl>
+                        <SelectContent>
+                          {(selectedLoan?.payments ?? []).map((p) => (
+                            <SelectItem key={p.rowIndex} value={String(p.rowIndex)}>
+                              {p.month} — LKR {p.paymentAmount.toLocaleString()}
+                              {p.status === "paid" ? " (paid)" : ""}
+                            </SelectItem>
+                          ))}
+                        </SelectContent>
+                      </Select>
+                      <FormMessage />
+                    </FormItem>
+                  )}
+                />
+                <FormField
+                  control={form.control}
+                  name="amount"
+                  render={({ field }) => (
+                    <FormItem className="sr-only">
+                      <FormControl>
+                        <AmountInput value={field.value} onChange={field.onChange} />
+                      </FormControl>
+                      <FormMessage />
+                    </FormItem>
+                  )}
+                />
+              </>
+            ) : null}
+
+            <FormField
+              control={form.control}
               name="description"
               render={({ field }) => (
                 <FormItem>
@@ -144,19 +293,22 @@ export function AddBudgetLineDialog({
                 </FormItem>
               )}
             />
-            <FormField
-              control={form.control}
-              name="amount"
-              render={({ field }) => (
-                <FormItem>
-                  <FormLabel>Amount</FormLabel>
-                  <FormControl>
-                    <AmountInput value={field.value} onChange={field.onChange} />
-                  </FormControl>
-                  <FormMessage />
-                </FormItem>
-              )}
-            />
+
+            {!isLoansCategory ? (
+              <FormField
+                control={form.control}
+                name="amount"
+                render={({ field }) => (
+                  <FormItem>
+                    <FormLabel>Amount</FormLabel>
+                    <FormControl>
+                      <AmountInput value={field.value} onChange={field.onChange} />
+                    </FormControl>
+                    <FormMessage />
+                  </FormItem>
+                )}
+              />
+            ) : null}
 
             <FormField
               control={form.control}
@@ -292,50 +444,56 @@ export function AddBudgetLineDialog({
                   name="fixedDepositMaturityMonths"
                   render={({ field }) => (
                     <FormItem>
-                      <FormLabel>Maturity</FormLabel>
-                      <div className="grid gap-2 sm:grid-cols-2">
-                        <Select
-                          onValueChange={(v) => {
-                            if (v === "custom") return;
-                            field.onChange(Number(v));
-                          }}
-                          value={
-                            field.value == null
-                              ? ""
-                              : [3, 6, 9, 12, 24, 36].includes(field.value)
-                                ? String(field.value)
-                                : "custom"
-                          }
-                        >
-                          <SelectTrigger>
-                            <SelectValue placeholder="Select period" />
-                          </SelectTrigger>
-                          <SelectContent>
-                            <SelectItem value="3">3 months</SelectItem>
-                            <SelectItem value="6">6 months</SelectItem>
-                            <SelectItem value="9">9 months</SelectItem>
-                            <SelectItem value="12">1 year</SelectItem>
-                            <SelectItem value="24">2 years</SelectItem>
-                            <SelectItem value="36">3 years</SelectItem>
-                            <SelectItem value="custom">Custom…</SelectItem>
-                          </SelectContent>
-                        </Select>
-
-                        <div className="space-y-1">
-                          <Label htmlFor="fd-custom-months-month">Custom months</Label>
-                          <Input
-                            id="fd-custom-months-month"
-                            type="number"
-                            inputMode="numeric"
-                            min={1}
-                            value={field.value ?? ""}
-                            onChange={(e) =>
-                              field.onChange(
-                                e.target.value === "" ? null : Number(e.target.value),
-                              )
+                      <div className="grid gap-3 sm:grid-cols-2">
+                        <div className="space-y-2">
+                          <FormLabel>Maturity</FormLabel>
+                          <Select
+                            onValueChange={(v) => {
+                              if (v === "custom") return;
+                              field.onChange(Number(v));
+                            }}
+                            value={
+                              field.value == null
+                                ? ""
+                                : [3, 6, 9, 12, 24, 36].includes(field.value)
+                                  ? String(field.value)
+                                  : "custom"
                             }
-                            placeholder="18"
-                          />
+                          >
+                            <FormControl>
+                              <SelectTrigger>
+                                <SelectValue placeholder="Select period" />
+                              </SelectTrigger>
+                            </FormControl>
+                            <SelectContent>
+                              <SelectItem value="3">3 months</SelectItem>
+                              <SelectItem value="6">6 months</SelectItem>
+                              <SelectItem value="9">9 months</SelectItem>
+                              <SelectItem value="12">1 year</SelectItem>
+                              <SelectItem value="24">2 years</SelectItem>
+                              <SelectItem value="36">3 years</SelectItem>
+                              <SelectItem value="custom">Custom…</SelectItem>
+                            </SelectContent>
+                          </Select>
+                        </div>
+
+                        <div className="space-y-2">
+                          <FormLabel htmlFor="fd-custom-months-month">Custom months</FormLabel>
+                          <FormControl>
+                            <Input
+                              id="fd-custom-months-month"
+                              type="number"
+                              inputMode="numeric"
+                              min={1}
+                              value={field.value ?? ""}
+                              onChange={(e) =>
+                                field.onChange(
+                                  e.target.value === "" ? null : Number(e.target.value),
+                                )
+                              }
+                              placeholder="18"
+                            />
+                          </FormControl>
                         </div>
                       </div>
                       <FormMessage />
@@ -344,31 +502,6 @@ export function AddBudgetLineDialog({
                 />
               </div>
             )}
-            <FormField
-              control={form.control}
-              name="section"
-              render={({ field }) => (
-                <FormItem>
-                  <FormLabel>Category</FormLabel>
-                  <Select onValueChange={field.onChange} value={field.value}>
-                    <FormControl>
-                      <SelectTrigger>
-                        <SelectValue />
-                      </SelectTrigger>
-                    </FormControl>
-                    <SelectContent>
-                      {SECTION_ORDER.map((s) => (
-                        <SelectItem key={s} value={s}>
-                          {SECTION_LABELS[s]}
-                        </SelectItem>
-                      ))}
-                    </SelectContent>
-                  </Select>
-                  <FormMessage />
-                </FormItem>
-              )}
-            />
-
             {selectedSection === "savings" && itemType !== "fixed_deposit" ? (
               <FormField
                 control={form.control}
@@ -396,12 +529,13 @@ export function AddBudgetLineDialog({
               />
             ) : null}
 
+            {!isLoansCategory ? (
             <FormField
               control={form.control}
               name="featureCategory"
               render={({ field }) => (
                 <FormItem>
-                  <FormLabel>Feature category</FormLabel>
+                  <FormLabel>Category</FormLabel>
                   <div className="grid items-end gap-2 sm:grid-cols-2">
                     <Select
                       onValueChange={(v) => {
@@ -459,6 +593,7 @@ export function AddBudgetLineDialog({
                 </FormItem>
               )}
             />
+            ) : null}
             <FormField
               control={form.control}
               name="financeType"

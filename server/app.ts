@@ -11,16 +11,20 @@ import {
   exportAllData,
   getLoan,
   getPayment,
+  linkPaymentToBudgetLine,
   listLoans,
   listPayments,
+  unlinkPaymentBudgetLine,
   updateLoan,
   updatePaymentAttachment,
   updatePaymentStatus,
 } from "./db/loans.js";
 import {
   createBudgetLine,
+  createLedgerEntry,
   createRecurringItem,
   deleteBudgetLine,
+  deleteLedgerEntry,
   deleteRecurringItem,
   duplicateMonthFromTemplate,
   getAnnualBudgetTotals,
@@ -32,15 +36,14 @@ import {
   postLineToLedger,
   removeLineFromLedger,
   updateBudgetLine,
+  updateLedgerEntry,
   updatePostedLineInLedger,
   updateRecurringItem,
 } from "./db/budget.js";
 import {
-  createTransaction,
-  deleteTransaction,
-  listTransactions,
-  updateTransaction,
-} from "./db/transactions.js";
+  getLedgerEntry,
+  listLedgerEntries,
+} from "./db/budget.js";
 
 function mapRecurringItem(r: ReturnType<typeof listRecurringItems>[number]) {
   return {
@@ -81,7 +84,7 @@ function mapBudgetLine(
     fixedDepositInterestRate: l.fixed_deposit_interest_rate,
     sortOrder: l.sort_order,
     status: l.status,
-    transactionId: l.transaction_id,
+    entryDate: l.entry_date,
     paidAt: l.paid_at,
   };
 }
@@ -115,10 +118,25 @@ export function createApp() {
     res.json({ ok: true });
   });
 
+  function mapLedgerContext(lineId: number) {
+    const line = getBudgetLine(lineId);
+    if (!line || line.status !== "paid") return null;
+    return {
+      budgetLineId: line.id,
+      section: line.section,
+      itemType: line.item_type,
+      featureCategory: line.feature_category,
+      savingsBucket: line.savings_bucket,
+      fixedDepositDate: line.fixed_deposit_date,
+      fixedDepositMaturityMonths: line.fixed_deposit_maturity_months,
+      fixedDepositInterestRate: line.fixed_deposit_interest_rate,
+    };
+  }
+
   // Transactions
   app.get("/api/transactions", (_req, res) => {
     try {
-      const rows = listTransactions();
+      const rows = listLedgerEntries();
       res.json(
         rows.map((r) => ({
           rowIndex: r.id,
@@ -126,8 +144,11 @@ export function createApp() {
           amount: r.amount,
           description: r.description,
           financeType: r.finance_type,
+          category: r.category ?? "",
+          loanPaymentId: r.loan_payment_id ?? null,
           driveLink: fileUrl(r.attachment_path),
           fileName: r.attachment_name ?? "",
+          ledgerContext: mapLedgerContext(r.id),
         })),
       );
     } catch (error) {
@@ -137,11 +158,32 @@ export function createApp() {
 
   app.post("/api/transactions", upload.single("file"), (req, res) => {
     try {
-      const { date, amount, description, financeType } = req.body as {
+      const {
+        date,
+        amount,
+        description,
+        financeType,
+        category,
+        loanPaymentId,
+        itemType,
+        featureCategory,
+        savingsBucket,
+        fixedDepositDate,
+        fixedDepositMaturityMonths,
+        fixedDepositInterestRate,
+      } = req.body as {
         date: string;
         amount: string;
         description: string;
         financeType: string;
+        category?: string;
+        loanPaymentId?: string;
+        itemType?: string;
+        featureCategory?: string;
+        savingsBucket?: string;
+        fixedDepositDate?: string;
+        fixedDepositMaturityMonths?: string;
+        fixedDepositInterestRate?: string;
       };
       let attachmentPath: string | null = null;
       let attachmentName: string | null = null;
@@ -150,11 +192,29 @@ export function createApp() {
         attachmentPath = saved.path;
         attachmentName = saved.name;
       }
-      const id = createTransaction({
+      const parsedLoanPaymentId =
+        loanPaymentId != null && String(loanPaymentId).trim()
+          ? Number(loanPaymentId)
+          : null;
+      const id = createLedgerEntry({
         date,
         amount: Number(amount),
         description: description ?? "",
         financeType,
+        category: category?.trim() ? category.trim() : null,
+        loanPaymentId: parsedLoanPaymentId,
+        itemType: itemType === "fixed_deposit" ? "fixed_deposit" : "regular",
+        savingsBucket: savingsBucket === "one_off" ? "one_off" : "savings",
+        featureCategory: featureCategory?.trim() || null,
+        fixedDepositDate: fixedDepositDate || null,
+        fixedDepositMaturityMonths:
+          fixedDepositMaturityMonths != null && String(fixedDepositMaturityMonths).trim()
+            ? Number(fixedDepositMaturityMonths)
+            : null,
+        fixedDepositInterestRate:
+          fixedDepositInterestRate != null && String(fixedDepositInterestRate).trim()
+            ? Number(fixedDepositInterestRate)
+            : null,
         attachmentPath,
         attachmentName,
       });
@@ -167,15 +227,38 @@ export function createApp() {
   app.put("/api/transactions/:id", upload.single("file"), (req, res) => {
     try {
       const id = Number(req.params.id);
-      const { date, amount, description, financeType, keepAttachment } =
-        req.body as {
-          date: string;
-          amount: string;
-          description: string;
-          financeType: string;
-          keepAttachment?: string;
-        };
-      const existing = listTransactions().find((t) => t.id === id);
+      const {
+        date,
+        amount,
+        description,
+        financeType,
+        keepAttachment,
+        category,
+        loanPaymentId,
+        budgetLineId,
+        itemType,
+        featureCategory,
+        savingsBucket,
+        fixedDepositDate,
+        fixedDepositMaturityMonths,
+        fixedDepositInterestRate,
+      } = req.body as {
+        date: string;
+        amount: string;
+        description: string;
+        financeType: string;
+        keepAttachment?: string;
+        category?: string;
+        loanPaymentId?: string;
+        budgetLineId?: string;
+        itemType?: string;
+        featureCategory?: string;
+        savingsBucket?: string;
+        fixedDepositDate?: string;
+        fixedDepositMaturityMonths?: string;
+        fixedDepositInterestRate?: string;
+      };
+      const existing = getLedgerEntry(id);
       if (!existing) {
         res.status(404).json({ error: "Transaction not found" });
         return;
@@ -189,14 +272,46 @@ export function createApp() {
         attachmentPath = saved.path;
         attachmentName = saved.name;
       }
-      updateTransaction(id, {
+
+      const nextLoanPaymentId =
+        loanPaymentId != null && String(loanPaymentId).trim()
+          ? Number(loanPaymentId)
+          : null;
+
+      if (existing.loan_payment_id != null && existing.loan_payment_id !== nextLoanPaymentId) {
+        unlinkPaymentBudgetLine(existing.loan_payment_id, id);
+      }
+
+      const nextCategory = category?.trim() ? category.trim() : null;
+      updateLedgerEntry(id, {
         date,
         amount: Number(amount),
         description: description ?? "",
         financeType,
+        category: nextCategory,
+        loanPaymentId: nextLoanPaymentId,
+        itemType:
+          itemType === "fixed_deposit" || itemType === "regular" ? itemType : "regular",
+        savingsBucket:
+          savingsBucket === "savings" || savingsBucket === "one_off" ? savingsBucket : "savings",
+        featureCategory: nextCategory === "Loans" ? "Loans" : (featureCategory?.trim() || null),
+        fixedDepositDate: fixedDepositDate !== undefined ? fixedDepositDate || null : null,
+        fixedDepositMaturityMonths:
+          fixedDepositMaturityMonths != null && String(fixedDepositMaturityMonths).trim()
+            ? Number(fixedDepositMaturityMonths)
+            : null,
+        fixedDepositInterestRate:
+          fixedDepositInterestRate != null && String(fixedDepositInterestRate).trim()
+            ? Number(fixedDepositInterestRate)
+            : null,
         attachmentPath,
         attachmentName,
       });
+
+      if (nextLoanPaymentId != null) {
+        linkPaymentToBudgetLine(nextLoanPaymentId, id);
+      }
+
       res.json({ ok: true });
     } catch (error) {
       res.status(500).json({ error: String(error) });
@@ -205,7 +320,8 @@ export function createApp() {
 
   app.delete("/api/transactions/:id", (req, res) => {
     try {
-      deleteTransaction(Number(req.params.id));
+      const id = Number(req.params.id);
+      deleteLedgerEntry(id);
       res.json({ ok: true });
     } catch (error) {
       res.status(500).json({ error: String(error) });
@@ -859,8 +975,8 @@ export function createApp() {
     }
   });
 
-  // Production: serve Vite build
-  const distPath = resolve(process.cwd(), "dist");
+  // Production: serve Vite build (Electron sets APP_ROOT to app.asar path in packaged builds).
+  const distPath = resolve(process.env.APP_ROOT ?? process.cwd(), "dist");
   if (isProduction && existsSync(distPath)) {
     app.use(express.static(distPath));
     app.get(/^(?!\/api).*/, (_req, res) => {

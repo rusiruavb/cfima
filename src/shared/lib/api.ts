@@ -29,6 +29,12 @@ export async function addTransaction(data: {
   financeType: FinanceType;
   category?: string;
   loanPaymentId?: number | null;
+  itemType?: "regular" | "fixed_deposit";
+  featureCategory?: string | null;
+  savingsBucket?: "savings" | "one_off";
+  fixedDepositDate?: string | null;
+  fixedDepositMaturityMonths?: number | null;
+  fixedDepositInterestRate?: number | null;
   file?: File | null;
 }): Promise<void> {
   const formData = new FormData();
@@ -38,6 +44,16 @@ export async function addTransaction(data: {
   formData.append("financeType", data.financeType);
   if (data.category) formData.append("category", data.category);
   if (data.loanPaymentId != null) formData.append("loanPaymentId", String(data.loanPaymentId));
+  if (data.itemType) formData.append("itemType", data.itemType);
+  if (data.featureCategory != null) formData.append("featureCategory", data.featureCategory);
+  if (data.savingsBucket) formData.append("savingsBucket", data.savingsBucket);
+  if (data.fixedDepositDate != null) formData.append("fixedDepositDate", data.fixedDepositDate);
+  if (data.fixedDepositMaturityMonths != null) {
+    formData.append("fixedDepositMaturityMonths", String(data.fixedDepositMaturityMonths));
+  }
+  if (data.fixedDepositInterestRate != null) {
+    formData.append("fixedDepositInterestRate", String(data.fixedDepositInterestRate));
+  }
   if (data.file) formData.append("file", data.file);
   await request("/transactions", { method: "POST", body: formData });
 }
@@ -53,6 +69,13 @@ export async function updateTransaction(
     loanPaymentId?: number | null;
     file?: File | null;
     existingLink?: string;
+    budgetLineId?: number | null;
+    itemType?: "regular" | "fixed_deposit";
+    featureCategory?: string | null;
+    savingsBucket?: "savings" | "one_off";
+    fixedDepositDate?: string | null;
+    fixedDepositMaturityMonths?: number | null;
+    fixedDepositInterestRate?: number | null;
   },
 ): Promise<void> {
   const formData = new FormData();
@@ -62,6 +85,17 @@ export async function updateTransaction(
   formData.append("financeType", data.financeType);
   if (data.category) formData.append("category", data.category);
   if (data.loanPaymentId != null) formData.append("loanPaymentId", String(data.loanPaymentId));
+  if (data.budgetLineId != null) formData.append("budgetLineId", String(data.budgetLineId));
+  if (data.itemType) formData.append("itemType", data.itemType);
+  if (data.featureCategory != null) formData.append("featureCategory", data.featureCategory);
+  if (data.savingsBucket) formData.append("savingsBucket", data.savingsBucket);
+  if (data.fixedDepositDate != null) formData.append("fixedDepositDate", data.fixedDepositDate);
+  if (data.fixedDepositMaturityMonths != null) {
+    formData.append("fixedDepositMaturityMonths", String(data.fixedDepositMaturityMonths));
+  }
+  if (data.fixedDepositInterestRate != null) {
+    formData.append("fixedDepositInterestRate", String(data.fixedDepositInterestRate));
+  }
   if (!data.file && data.existingLink) {
     formData.append("keepAttachment", "true");
   }

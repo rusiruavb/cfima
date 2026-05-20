@@ -101,6 +101,7 @@ export async function addBudgetLine(
     itemType?: string;
     savingsBucket?: string;
     featureCategory?: string | null;
+    loanPaymentId?: number | null;
     fixedDepositDate?: string;
     fixedDepositMaturityMonths?: number;
     fixedDepositInterestRate?: number;

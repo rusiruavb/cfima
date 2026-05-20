@@ -7,12 +7,14 @@ const config: Config = {
   theme: {
     extend: {
       colors: {
-        primary: "#10463B",
-        secondary: "#F5F0D1",
+        primary: "hsl(var(--primary) / <alpha-value>)",
+        secondary: "hsl(var(--secondary) / <alpha-value>)",
+        sidebar: "hsl(var(--sidebar) / <alpha-value>)",
         expense: "#CB6265",
         income: "#367D58",
         border: "hsl(var(--border))",
         input: "hsl(var(--input))",
+        field: "hsl(var(--field))",
         ring: "hsl(var(--ring))",
         background: "hsl(var(--background))",
         foreground: "hsl(var(--foreground))",

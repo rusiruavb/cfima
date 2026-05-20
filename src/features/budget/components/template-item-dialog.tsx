@@ -17,7 +17,6 @@ import {
   FormMessage,
 } from "@/components/ui/form";
 import { Input } from "@/components/ui/input";
-import { Label } from "@/components/ui/label";
 import {
   Select,
   SelectContent,
@@ -227,53 +226,59 @@ export function TemplateItemDialog({
                   name="fixedDepositMaturityMonths"
                   render={({ field }) => (
                     <FormItem>
-                      <FormLabel>Maturity</FormLabel>
-                      <div className="grid gap-2 sm:grid-cols-2">
-                        <Select
-                          onValueChange={(v) => {
-                            if (v === "custom") {
-                              field.onChange(field.value ?? null);
-                              return;
+                      <div className="grid gap-3 sm:grid-cols-2">
+                        <div className="space-y-2">
+                          <FormLabel>Maturity</FormLabel>
+                          <Select
+                            onValueChange={(v) => {
+                              if (v === "custom") {
+                                field.onChange(field.value ?? null);
+                                return;
+                              }
+                              field.onChange(Number(v));
+                            }}
+                            value={
+                              field.value == null
+                                ? ""
+                                : [3, 6, 9, 12, 24, 36].includes(field.value)
+                                  ? String(field.value)
+                                  : "custom"
                             }
-                            field.onChange(Number(v));
-                          }}
-                          value={
-                            field.value == null
-                              ? ""
-                              : [3, 6, 9, 12, 24, 36].includes(field.value)
-                                ? String(field.value)
-                                : "custom"
-                          }
-                        >
-                          <SelectTrigger>
-                            <SelectValue placeholder="Select period" />
-                          </SelectTrigger>
-                          <SelectContent>
-                            <SelectItem value="3">3 months</SelectItem>
-                            <SelectItem value="6">6 months</SelectItem>
-                            <SelectItem value="9">9 months</SelectItem>
-                            <SelectItem value="12">1 year</SelectItem>
-                            <SelectItem value="24">2 years</SelectItem>
-                            <SelectItem value="36">3 years</SelectItem>
-                            <SelectItem value="custom">Custom…</SelectItem>
-                          </SelectContent>
-                        </Select>
+                          >
+                            <FormControl>
+                              <SelectTrigger>
+                                <SelectValue placeholder="Select period" />
+                              </SelectTrigger>
+                            </FormControl>
+                            <SelectContent>
+                              <SelectItem value="3">3 months</SelectItem>
+                              <SelectItem value="6">6 months</SelectItem>
+                              <SelectItem value="9">9 months</SelectItem>
+                              <SelectItem value="12">1 year</SelectItem>
+                              <SelectItem value="24">2 years</SelectItem>
+                              <SelectItem value="36">3 years</SelectItem>
+                              <SelectItem value="custom">Custom…</SelectItem>
+                            </SelectContent>
+                          </Select>
+                        </div>
 
-                        <div className="space-y-1">
-                          <Label htmlFor="fd-custom-months">Custom months</Label>
-                          <Input
-                            id="fd-custom-months"
-                            type="number"
-                            inputMode="numeric"
-                            min={1}
-                            value={field.value ?? ""}
-                            onChange={(e) =>
-                              field.onChange(
-                                e.target.value === "" ? null : Number(e.target.value),
-                              )
-                            }
-                            placeholder="18"
-                          />
+                        <div className="space-y-2">
+                          <FormLabel htmlFor="fd-custom-months">Custom months</FormLabel>
+                          <FormControl>
+                            <Input
+                              id="fd-custom-months"
+                              type="number"
+                              inputMode="numeric"
+                              min={1}
+                              value={field.value ?? ""}
+                              onChange={(e) =>
+                                field.onChange(
+                                  e.target.value === "" ? null : Number(e.target.value),
+                                )
+                              }
+                              placeholder="18"
+                            />
+                          </FormControl>
                         </div>
                       </div>
                       <FormMessage />

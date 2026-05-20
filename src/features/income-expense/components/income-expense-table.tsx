@@ -1,7 +1,5 @@
-import { zodResolver } from "@hookform/resolvers/zod";
 import { Pencil, Trash2 } from "lucide-react";
 import { useMemo, useState } from "react";
-import { useForm } from "react-hook-form";
 import {
   AlertDialog,
   AlertDialogAction,
@@ -14,28 +12,6 @@ import {
 } from "@/components/ui/alert-dialog";
 import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
-import {
-  Dialog,
-  DialogContent,
-  DialogHeader,
-  DialogTitle,
-} from "@/components/ui/dialog";
-import {
-  Form,
-  FormControl,
-  FormField,
-  FormItem,
-  FormLabel,
-  FormMessage,
-} from "@/components/ui/form";
-import { Input } from "@/components/ui/input";
-import {
-  Select,
-  SelectContent,
-  SelectItem,
-  SelectTrigger,
-  SelectValue,
-} from "@/components/ui/select";
 import { Skeleton } from "@/components/ui/skeleton";
 import {
   Table,
@@ -45,16 +21,15 @@ import {
   TableHeader,
   TableRow,
 } from "@/components/ui/table";
+import { EditTransactionDialog } from "@/features/income-expense/components/edit-transaction-dialog";
 import { TransactionFilterSortMenu } from "@/features/income-expense/components/transaction-filter-sort-menu";
 import { useDeleteTransaction } from "@/features/income-expense/hooks/use-delete-transaction";
 import { useIncomeExpenses } from "@/features/income-expense/hooks/use-income-expenses";
-import { useUpdateTransaction } from "@/features/income-expense/hooks/use-update-transaction";
-import {
-  transactionSchema,
-  type TransactionFormValues,
-} from "@/features/income-expense/schemas/transaction-schema";
 import type { Transaction } from "@/features/income-expense/types/transaction";
-import { transactionToFormValues } from "@/features/income-expense/lib/transaction-form-utils";
+import {
+  formatLoanPaymentLabel,
+  formatTransactionCategory,
+} from "@/features/income-expense/lib/transaction-display-utils";
 import {
   applyTransactionQuery,
   DEFAULT_TRANSACTION_FILTERS,
@@ -62,15 +37,15 @@ import {
   type TransactionFilters,
   type TransactionSort,
 } from "@/features/income-expense/lib/transaction-table-query";
-import { FINANCE_TYPES } from "@/shared/constants/sheets";
-import { DatePickerField } from "@/shared/components/date-picker-field";
+import { useLoans } from "@/features/loans/hooks/use-loans";
 import { DateText } from "@/shared/components/date-text";
-import { FileUpload } from "@/shared/components/file-upload";
 import { Numeric } from "@/shared/components/numeric";
+import { LEDGER_TABLE_COMPACT } from "@/shared/lib/compact-table";
 import { cn } from "@/shared/lib/utils";
 
 export function IncomeExpenseTable() {
   const { data = [], isLoading, isError, refetch } = useIncomeExpenses();
+  const { data: loans = [] } = useLoans();
   const deleteMutation = useDeleteTransaction();
   const [filters, setFilters] = useState<TransactionFilters>(DEFAULT_TRANSACTION_FILTERS);
   const [sort, setSort] = useState<TransactionSort>(DEFAULT_TRANSACTION_SORT);
@@ -86,7 +61,7 @@ export function IncomeExpenseTable() {
     return (
       <div className="space-y-2">
         {Array.from({ length: 5 }).map((_, i) => (
-          <Skeleton key={i} className="h-12 w-full" />
+          <Skeleton key={i} className="h-9 w-full" />
         ))}
       </div>
     );
@@ -140,8 +115,23 @@ export function IncomeExpenseTable() {
                     )}
                   />
                 </div>
+                <div className="mt-2 space-y-1 text-xs text-muted-foreground">
+                  <p>
+                    <span className="font-medium text-foreground/80">Category:</span>{" "}
+                    {formatTransactionCategory(row.category, row.ledgerContext)}
+                  </p>
+                  {row.loanPaymentId != null ? (
+                    <p>
+                      <span className="font-medium text-foreground/80">Loan:</span>{" "}
+                      {formatLoanPaymentLabel(loans, row.loanPaymentId)}
+                    </p>
+                  ) : null}
+                </div>
                 <div className="mt-3 flex flex-wrap items-center justify-between gap-2">
-                  <Badge variant={row.financeType === "Income" ? "income" : "expense"}>
+                  <Badge
+                    variant={row.financeType === "Income" ? "income" : "expense"}
+                    className="px-2 py-0 text-[10px]"
+                  >
                     {row.financeType}
                   </Badge>
                   <div className="flex gap-1">
@@ -163,16 +153,6 @@ export function IncomeExpenseTable() {
                     </Button>
                   </div>
                 </div>
-                {row.driveLink ? (
-                  <a
-                    href={row.driveLink}
-                    target="_blank"
-                    rel="noreferrer"
-                    className="mt-2 inline-block text-sm text-primary underline"
-                  >
-                    {row.fileName || "View file"}
-                  </a>
-                ) : null}
               </li>
             ))}
           </ul>
@@ -181,21 +161,22 @@ export function IncomeExpenseTable() {
 
       {/* Desktop table */}
       <div className="hidden overflow-x-auto rounded-lg border border-primary/20 lg:block">
-        <Table>
+        <Table className={LEDGER_TABLE_COMPACT}>
           <TableHeader>
-            <TableRow>
+            <TableRow className="border-primary/20 bg-secondary hover:bg-secondary">
               <TableHead>Date</TableHead>
               <TableHead>Amount</TableHead>
               <TableHead>Description</TableHead>
               <TableHead>Type</TableHead>
-              <TableHead>Attached File</TableHead>
-              <TableHead>Actions</TableHead>
+              <TableHead>Category</TableHead>
+              <TableHead>Loan</TableHead>
+              <TableHead className="w-[88px]">Actions</TableHead>
             </TableRow>
           </TableHeader>
           <TableBody>
             {filtered.length === 0 ? (
               <TableRow>
-                <TableCell colSpan={6} className="py-12 text-center text-muted-foreground">
+                <TableCell colSpan={7} className="py-8 text-center text-muted-foreground">
                   No transactions match your filters.
                 </TableCell>
               </TableRow>
@@ -215,41 +196,38 @@ export function IncomeExpenseTable() {
                   </TableCell>
                   <TableCell>{row.description}</TableCell>
                   <TableCell>
-                    <Badge variant={row.financeType === "Income" ? "income" : "expense"}>
+                    <Badge
+                      variant={row.financeType === "Income" ? "income" : "expense"}
+                      className="px-2 py-0 text-[10px]"
+                    >
                       {row.financeType}
                     </Badge>
                   </TableCell>
-                  <TableCell>
-                    {row.driveLink ? (
-                      <a
-                        href={row.driveLink}
-                        target="_blank"
-                        rel="noreferrer"
-                        className="text-primary underline"
-                      >
-                        {row.fileName || "View file"}
-                      </a>
-                    ) : (
-                      "—"
-                    )}
+                  <TableCell className="text-muted-foreground">
+                    {formatTransactionCategory(row.category, row.ledgerContext)}
+                  </TableCell>
+                  <TableCell className="max-w-[12rem] truncate text-muted-foreground">
+                    {formatLoanPaymentLabel(loans, row.loanPaymentId)}
                   </TableCell>
                   <TableCell>
-                    <div className="flex gap-1">
+                    <div className="flex gap-0.5">
                       <Button
                         variant="ghost"
                         size="icon"
+                        className="h-8 w-8"
                         aria-label="Edit transaction"
                         onClick={() => setEditing(row)}
                       >
-                        <Pencil className="h-4 w-4" />
+                        <Pencil className="h-3.5 w-3.5" />
                       </Button>
                       <Button
                         variant="ghost"
                         size="icon"
+                        className="h-8 w-8"
                         aria-label="Delete transaction"
                         onClick={() => setDeleting(row)}
                       >
-                        <Trash2 className="h-4 w-4 text-expense" />
+                        <Trash2 className="h-3.5 w-3.5 text-expense" />
                       </Button>
                     </div>
                   </TableCell>
@@ -260,9 +238,11 @@ export function IncomeExpenseTable() {
         </Table>
       </div>
 
-      {editing && (
-        <EditTransactionDialog transaction={editing} onClose={() => setEditing(null)} />
-      )}
+      <EditTransactionDialog
+        open={editing != null}
+        onOpenChange={(open) => !open && setEditing(null)}
+        transaction={editing}
+      />
 
       <AlertDialog open={!!deleting} onOpenChange={() => setDeleting(null)}>
         <AlertDialogContent>
@@ -290,118 +270,3 @@ export function IncomeExpenseTable() {
   );
 }
 
-function EditTransactionDialog({
-  transaction,
-  onClose,
-}: {
-  transaction: Transaction;
-  onClose: () => void;
-}) {
-  const updateMutation = useUpdateTransaction();
-  const form = useForm<TransactionFormValues>({
-    resolver: zodResolver(transactionSchema),
-    defaultValues: transactionToFormValues(transaction),
-  });
-
-  return (
-    <Dialog open onOpenChange={onClose}>
-      <DialogContent>
-        <DialogHeader>
-          <DialogTitle>Edit transaction</DialogTitle>
-        </DialogHeader>
-        <Form {...form}>
-          <form
-            className="space-y-4"
-            onSubmit={form.handleSubmit((values) =>
-              updateMutation.mutate(
-                {
-                  rowIndex: transaction.rowIndex,
-                  data: values,
-                  existingLink: transaction.driveLink,
-                },
-                { onSuccess: onClose },
-              ),
-            )}
-          >
-            <FormField
-              control={form.control}
-              name="date"
-              render={({ field }) => (
-                <FormItem>
-                  <FormLabel>Date</FormLabel>
-                  <FormControl>
-                    <DatePickerField value={field.value} onChange={field.onChange} />
-                  </FormControl>
-                  <FormMessage />
-                </FormItem>
-              )}
-            />
-            <FormField
-              control={form.control}
-              name="amount"
-              render={({ field }) => (
-                <FormItem>
-                  <FormLabel>Amount</FormLabel>
-                  <FormControl>
-                    <Input type="number" className="font-mono-numeric" {...field} />
-                  </FormControl>
-                  <FormMessage />
-                </FormItem>
-              )}
-            />
-            <FormField
-              control={form.control}
-              name="description"
-              render={({ field }) => (
-                <FormItem>
-                  <FormLabel>Description</FormLabel>
-                  <FormControl>
-                    <Input {...field} />
-                  </FormControl>
-                  <FormMessage />
-                </FormItem>
-              )}
-            />
-            <FormField
-              control={form.control}
-              name="financeType"
-              render={({ field }) => (
-                <FormItem>
-                  <FormLabel>Type</FormLabel>
-                  <Select onValueChange={field.onChange} value={field.value}>
-                    <FormControl>
-                      <SelectTrigger>
-                        <SelectValue />
-                      </SelectTrigger>
-                    </FormControl>
-                    <SelectContent>
-                      {FINANCE_TYPES.map((t) => (
-                        <SelectItem key={t} value={t}>
-                          {t}
-                        </SelectItem>
-                      ))}
-                    </SelectContent>
-                  </Select>
-                  <FormMessage />
-                </FormItem>
-              )}
-            />
-            <FormField
-              control={form.control}
-              name="file"
-              render={({ field }) => (
-                <FormItem>
-                  <FormLabel>New file (optional)</FormLabel>
-                  <FileUpload selectedFile={field.value} onFileSelect={field.onChange} />
-                </FormItem>
-              )}
-            />
-            <Button type="submit" disabled={updateMutation.isPending}>
-              Save
-            </Button>
-          </form>
-        </Form>
-      </DialogContent>
-    </Dialog>
-  );
-}

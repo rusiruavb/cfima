@@ -64,6 +64,8 @@ async function startEmbeddedServer(): Promise<StartedServer> {
   process.env.PORT = "0";
   process.env.DATA_DIR = dataDir;
   process.env.DATABASE_PATH = path.join(dataDir, "cfima.db");
+  // Packaged app: getAppPath() is ".../app.asar" (a file). Node can read dist/ inside it via this path.
+  process.env.APP_ROOT = app.getAppPath();
 
   const { startServer } = await import("../dist-server/start-server.js");
   const started = await startServer();
@@ -90,6 +92,9 @@ app.whenReady().then(async () => {
 
   server = await startEmbeddedServer();
   await createWindow(`http://127.0.0.1:${server.port}`);
+}).catch((err) => {
+  console.error("CFIMA failed to start:", err);
+  app.quit();
 });
 
 app.on("window-all-closed", async () => {

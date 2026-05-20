@@ -14,6 +14,7 @@ import {
 } from "@/features/budget/services/budget-api";
 import type { AmountMode } from "@/features/budget/types/budget";
 import { INCOME_EXPENSE_QUERY_KEY } from "@/features/income-expense/hooks/use-income-expenses";
+import { LOANS_QUERY_KEY } from "@/features/loans/hooks/use-loans";
 
 export const BUDGET_MONTHS_KEY = ["budget", "months"] as const;
 
@@ -135,6 +136,7 @@ export function usePostBudgetLineToLedger(yearMonth: string) {
       void queryClient.invalidateQueries({ queryKey: budgetMonthKey(yearMonth) });
       invalidateYearTotals(queryClient, yearMonth);
       void queryClient.invalidateQueries({ queryKey: INCOME_EXPENSE_QUERY_KEY });
+      void queryClient.invalidateQueries({ queryKey: LOANS_QUERY_KEY });
       toast.success("Posted to ledger");
     },
     onError: (e: Error) => toast.error(e.message),
@@ -173,6 +175,7 @@ export function useRemoveBudgetLineFromLedger(yearMonth: string) {
       void queryClient.invalidateQueries({ queryKey: budgetMonthKey(yearMonth) });
       invalidateYearTotals(queryClient, yearMonth);
       void queryClient.invalidateQueries({ queryKey: INCOME_EXPENSE_QUERY_KEY });
+      void queryClient.invalidateQueries({ queryKey: LOANS_QUERY_KEY });
       toast.success("Removed from ledger");
     },
     onError: (e: Error) => toast.error(e.message),

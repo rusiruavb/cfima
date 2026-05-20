@@ -1,5 +1,4 @@
-import { Check, Upload } from "lucide-react";
-import { useRef } from "react";
+import { Check } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import {
   Table,
@@ -12,6 +11,7 @@ import {
 import { useUpdateLoanPayment } from "@/features/loans/hooks/use-update-loan-payment";
 import type { Loan, LoanPayment } from "@/features/loans/types/loan";
 import { Numeric } from "@/shared/components/numeric";
+import { LEDGER_TABLE_COMPACT } from "@/shared/lib/compact-table";
 import { cn } from "@/shared/lib/utils";
 
 interface LoanDetailTableProps {
@@ -19,7 +19,7 @@ interface LoanDetailTableProps {
 }
 
 export function LoanDetailTable({ loan }: LoanDetailTableProps) {
-  const { toggleMutation, uploadMutation } = useUpdateLoanPayment(loan.id);
+  const { toggleMutation } = useUpdateLoanPayment(loan.id);
 
   return (
     <>
@@ -32,11 +32,7 @@ export function LoanDetailTable({ loan }: LoanDetailTableProps) {
               onToggle={() =>
                 toggleMutation.mutate({ rowIndex: payment.rowIndex })
               }
-              onUpload={(file) =>
-                uploadMutation.mutate({ rowIndex: payment.rowIndex, file })
-              }
               isToggling={toggleMutation.isPending}
-              isUploading={uploadMutation.isPending}
             />
           </li>
         ))}
@@ -44,17 +40,16 @@ export function LoanDetailTable({ loan }: LoanDetailTableProps) {
 
       {/* Desktop table */}
       <div className="hidden overflow-x-auto rounded-lg border border-primary/20 lg:block">
-        <Table>
+        <Table className={LEDGER_TABLE_COMPACT}>
           <TableHeader>
-            <TableRow>
+            <TableRow className="border-primary/20 bg-secondary hover:bg-secondary">
               <TableHead>Month</TableHead>
               <TableHead>Payment</TableHead>
               <TableHead>Principal</TableHead>
               <TableHead>Interest</TableHead>
               <TableHead>Remaining</TableHead>
-              <TableHead>File</TableHead>
               <TableHead>Status</TableHead>
-              <TableHead className="no-print">Actions</TableHead>
+              <TableHead className="no-print w-[72px]">Actions</TableHead>
             </TableRow>
           </TableHeader>
           <TableBody>
@@ -65,11 +60,7 @@ export function LoanDetailTable({ loan }: LoanDetailTableProps) {
                 onToggle={() =>
                   toggleMutation.mutate({ rowIndex: payment.rowIndex })
                 }
-                onUpload={(file) =>
-                  uploadMutation.mutate({ rowIndex: payment.rowIndex, file })
-                }
                 isToggling={toggleMutation.isPending}
-                isUploading={uploadMutation.isPending}
               />
             ))}
           </TableBody>
@@ -82,17 +73,12 @@ export function LoanDetailTable({ loan }: LoanDetailTableProps) {
 function PaymentCard({
   payment,
   onToggle,
-  onUpload,
   isToggling,
-  isUploading,
 }: {
   payment: LoanPayment;
   onToggle: () => void;
-  onUpload: (file: File) => void;
   isToggling: boolean;
-  isUploading: boolean;
 }) {
-  const inputRef = useRef<HTMLInputElement>(null);
   const isPaid = payment.status === "paid";
 
   return (
@@ -118,44 +104,16 @@ function PaymentCard({
         <span className="text-muted-foreground">Remaining</span>
         <Numeric value={payment.remainingBalance} className="justify-end text-right" />
       </div>
-      {payment.fileLink ? (
-        <a
-          href={payment.fileLink}
-          target="_blank"
-          rel="noreferrer"
-          className="mt-3 inline-block text-sm text-primary underline"
-        >
-          {payment.fileName || "View file"}
-        </a>
-      ) : null}
-      <div className="no-print mt-4 flex gap-2">
+      <div className="no-print mt-4">
         <Button
           variant={isPaid ? "secondary" : "default"}
           size="sm"
-          className="flex-1"
+          className="w-full"
           onClick={onToggle}
           disabled={isToggling}
         >
           <Check className="mr-1 h-4 w-4" />
           {isPaid ? "Undo" : "Mark paid"}
-        </Button>
-        <input
-          ref={inputRef}
-          type="file"
-          className="sr-only"
-          onChange={(e) => {
-            const file = e.target.files?.[0];
-            if (file) onUpload(file);
-          }}
-        />
-        <Button
-          variant="outline"
-          size="sm"
-          disabled={isUploading}
-          onClick={() => inputRef.current?.click()}
-          aria-label="Upload payment file"
-        >
-          <Upload className="h-4 w-4" />
         </Button>
       </div>
     </div>
@@ -165,17 +123,12 @@ function PaymentCard({
 function PaymentRow({
   payment,
   onToggle,
-  onUpload,
   isToggling,
-  isUploading,
 }: {
   payment: LoanPayment;
   onToggle: () => void;
-  onUpload: (file: File) => void;
   isToggling: boolean;
-  isUploading: boolean;
 }) {
-  const inputRef = useRef<HTMLInputElement>(null);
   const isPaid = payment.status === "paid";
 
   return (
@@ -193,53 +146,18 @@ function PaymentRow({
       <TableCell>
         <Numeric value={payment.remainingBalance} />
       </TableCell>
-      <TableCell>
-        {payment.fileLink ? (
-          <a
-            href={payment.fileLink}
-            target="_blank"
-            rel="noreferrer"
-            className="text-primary underline not-italic no-underline-offset"
-            style={{ textDecoration: "underline" }}
-          >
-            {payment.fileName || "File"}
-          </a>
-        ) : (
-          "—"
-        )}
-      </TableCell>
       <TableCell className="capitalize">{payment.status}</TableCell>
       <TableCell className="no-print">
-        <div className="flex gap-1">
-          <Button
-            variant={isPaid ? "secondary" : "default"}
-            size="sm"
-            onClick={onToggle}
-            disabled={isToggling}
-            aria-label={isPaid ? "Mark as pending" : "Mark as paid"}
-          >
-            <Check className="h-4 w-4" />
-            {isPaid ? "Undo" : "Paid"}
-          </Button>
-          <input
-            ref={inputRef}
-            type="file"
-            className="sr-only"
-            onChange={(e) => {
-              const file = e.target.files?.[0];
-              if (file) onUpload(file);
-            }}
-          />
-          <Button
-            variant="outline"
-            size="sm"
-            disabled={isUploading}
-            onClick={() => inputRef.current?.click()}
-            aria-label="Upload payment file"
-          >
-            <Upload className="h-4 w-4" />
-          </Button>
-        </div>
+        <Button
+          variant={isPaid ? "secondary" : "default"}
+          size="sm"
+          onClick={onToggle}
+          disabled={isToggling}
+          aria-label={isPaid ? "Mark as pending" : "Mark as paid"}
+        >
+          <Check className="h-4 w-4" />
+          {isPaid ? "Undo" : "Paid"}
+        </Button>
       </TableCell>
     </TableRow>
   );

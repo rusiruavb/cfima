@@ -21,8 +21,10 @@ import { AddBudgetLineDialog } from "@/features/budget/components/add-budget-lin
 import { AnnualBudgetTotalsBar } from "@/features/budget/components/annual-budget-totals-bar";
 import { BudgetTotalsBar } from "@/features/budget/components/budget-totals-bar";
 import { CreateMonthDialog } from "@/features/budget/components/create-month-dialog";
-import { EditLedgerEntryDialog } from "@/features/budget/components/edit-ledger-entry-dialog";
 import { PostToLedgerDialog } from "@/features/budget/components/post-to-ledger-dialog";
+import { EditTransactionDialog } from "@/features/income-expense/components/edit-transaction-dialog";
+import { useIncomeExpenses } from "@/features/income-expense/hooks/use-income-expenses";
+import type { Transaction } from "@/features/income-expense/types/transaction";
 import { YearMonthTabs } from "@/features/budget/components/year-month-tabs";
 import {
   useAddBudgetLine,
@@ -32,11 +34,14 @@ import {
   useDeleteBudgetLine,
   usePostBudgetLineToLedger,
   useRemoveBudgetLineFromLedger,
-  useUpdatePostedBudgetLine,
   useUpdateBudgetLine,
 } from "@/features/budget/hooks/use-budget-month";
 import { compactCell, compactHead } from "@/features/budget/lib/compact-table";
-import { SECTION_LABELS, SECTION_ORDER } from "@/features/budget/lib/section-labels";
+import {
+  LOANS_CATEGORY,
+  SECTION_LABELS,
+  SECTION_ORDER,
+} from "@/features/budget/lib/section-labels";
 import type { BudgetLineFormValues } from "@/features/budget/schemas/budget-schema";
 import type { BudgetLine, BudgetLineStatus, BudgetSection } from "@/features/budget/types/budget";
 import { Numeric } from "@/shared/components/numeric";
@@ -60,6 +65,39 @@ function statusBadgeVariant(status: BudgetLineStatus) {
   return "outline";
 }
 
+function lineCategoryLabel(line: BudgetLine): string | null {
+  const category = line.featureCategory?.trim();
+  if (!category || category === "Loans") return null;
+  return category;
+}
+
+function budgetLinePayload(values: BudgetLineFormValues) {
+  const isLoan = values.section === LOANS_CATEGORY;
+  return {
+    description: values.description,
+    amount: values.amount,
+    financeType: values.financeType,
+    section: isLoan ? "fixed" : values.section,
+    plannedDate: values.plannedDate ?? null,
+    itemType: isLoan ? "regular" : values.itemType,
+    savingsBucket: values.savingsBucket,
+    featureCategory: isLoan ? "Loans" : (values.featureCategory ?? null),
+    loanPaymentId: isLoan ? (values.loanPaymentId ?? null) : null,
+    fixedDepositDate:
+      values.section === "savings" && values.itemType === "fixed_deposit"
+        ? (values.fixedDepositDate ?? undefined)
+        : undefined,
+    fixedDepositMaturityMonths:
+      values.section === "savings" && values.itemType === "fixed_deposit"
+        ? (values.fixedDepositMaturityMonths ?? undefined)
+        : undefined,
+    fixedDepositInterestRate:
+      values.section === "savings" && values.itemType === "fixed_deposit"
+        ? (values.fixedDepositInterestRate ?? undefined)
+        : undefined,
+  };
+}
+
 export function BudgetMonthView({ yearMonth, onYearMonthChange }: BudgetMonthViewProps) {
   const { data: month, isLoading, isError, error } = useBudgetMonth(yearMonth);
   const year = yearMonth.slice(0, 4);
@@ -75,15 +113,21 @@ export function BudgetMonthView({ yearMonth, onYearMonthChange }: BudgetMonthVie
   const [addOpen, setAddOpen] = useState(false);
   const [quickAddOpen, setQuickAddOpen] = useState(false);
   const [postLine, setPostLine] = useState<BudgetLine | null>(null);
-  const [editLedgerLine, setEditLedgerLine] = useState<BudgetLine | null>(null);
+  const [editTransaction, setEditTransaction] = useState<Transaction | null>(null);
   const [draftAmounts, setDraftAmounts] = useState<Record<number, number | undefined>>({});
+  const { data: transactions = [] } = useIncomeExpenses();
 
   const addLine = useAddBudgetLine(yearMonth);
   const updateLine = useUpdateBudgetLine(yearMonth);
   const deleteLine = useDeleteBudgetLine(yearMonth);
   const postToLedger = usePostBudgetLineToLedger(yearMonth);
-  const updatePosted = useUpdatePostedBudgetLine(yearMonth);
   const removeFromLedger = useRemoveBudgetLineFromLedger(yearMonth);
+
+  const handleEditPostedLine = (line: BudgetLine) => {
+    if (line.status !== "paid") return;
+    const tx = transactions.find((t) => t.rowIndex === line.id);
+    if (tx) setEditTransaction(tx);
+  };
 
   const notFound =
     isError && error instanceof Error && error.message.includes("404");
@@ -230,7 +274,7 @@ export function BudgetMonthView({ yearMonth, onYearMonthChange }: BudgetMonthVie
                     sectionTotal={sectionTotal}
                     onAdd={() => openAdd(section)}
                     onPost={setPostLine}
-                    onEditLedger={setEditLedgerLine}
+                    onEditLedger={handleEditPostedLine}
                     onRemoveFromLedger={(id) => removeFromLedger.mutate(id)}
                     onUpdate={(id, data) => updateLine.mutate({ id, data })}
                     onDelete={(id) => deleteLine.mutate(id)}
@@ -253,38 +297,14 @@ export function BudgetMonthView({ yearMonth, onYearMonthChange }: BudgetMonthVie
         defaultSection={addSection}
         isPending={addLine.isPending}
         onSubmit={(values: BudgetLineFormValues) => {
-          addLine.mutate(
-            {
-              description: values.description,
-              amount: values.amount,
-              financeType: values.financeType,
-              section: values.section,
-              plannedDate: values.plannedDate ?? null,
-              itemType: values.itemType,
-              savingsBucket: values.savingsBucket,
-              featureCategory: values.featureCategory ?? null,
-              fixedDepositDate:
-                values.section === "savings" && values.itemType === "fixed_deposit"
-                  ? values.fixedDepositDate ?? undefined
-                  : undefined,
-              fixedDepositMaturityMonths:
-                values.section === "savings" && values.itemType === "fixed_deposit"
-                  ? values.fixedDepositMaturityMonths ?? undefined
-                  : undefined,
-              fixedDepositInterestRate:
-                values.section === "savings" && values.itemType === "fixed_deposit"
-                  ? values.fixedDepositInterestRate ?? undefined
-                  : undefined,
+          addLine.mutate(budgetLinePayload(values), {
+            onSuccess: (line) => {
+              setAddOpen(false);
+              if (!values.postToLedger) return;
+              const date = values.plannedDate ? new Date(values.plannedDate) : new Date();
+              postToLedger.mutate({ id: line.id, date, amount: line.amount });
             },
-            {
-              onSuccess: (line) => {
-                setAddOpen(false);
-                if (!values.postToLedger) return;
-                const date = values.plannedDate ? new Date(values.plannedDate) : new Date();
-                postToLedger.mutate({ id: line.id, date, amount: line.amount });
-              },
-            },
-          );
+          });
         }}
       />
 
@@ -294,38 +314,14 @@ export function BudgetMonthView({ yearMonth, onYearMonthChange }: BudgetMonthVie
         defaultSection="income"
         isPending={addLine.isPending}
         onSubmit={(values: BudgetLineFormValues) => {
-          addLine.mutate(
-            {
-              description: values.description,
-              amount: values.amount,
-              financeType: values.financeType,
-              section: values.section,
-              plannedDate: values.plannedDate ?? null,
-              itemType: values.itemType,
-              savingsBucket: values.savingsBucket,
-              featureCategory: values.featureCategory ?? null,
-              fixedDepositDate:
-                values.section === "savings" && values.itemType === "fixed_deposit"
-                  ? values.fixedDepositDate ?? undefined
-                  : undefined,
-              fixedDepositMaturityMonths:
-                values.section === "savings" && values.itemType === "fixed_deposit"
-                  ? values.fixedDepositMaturityMonths ?? undefined
-                  : undefined,
-              fixedDepositInterestRate:
-                values.section === "savings" && values.itemType === "fixed_deposit"
-                  ? values.fixedDepositInterestRate ?? undefined
-                  : undefined,
+          addLine.mutate(budgetLinePayload(values), {
+            onSuccess: (line) => {
+              setQuickAddOpen(false);
+              if (!values.postToLedger) return;
+              const date = values.plannedDate ? new Date(values.plannedDate) : new Date();
+              postToLedger.mutate({ id: line.id, date, amount: line.amount });
             },
-            {
-              onSuccess: (line) => {
-                setQuickAddOpen(false);
-                if (!values.postToLedger) return;
-                const date = values.plannedDate ? new Date(values.plannedDate) : new Date();
-                postToLedger.mutate({ id: line.id, date, amount: line.amount });
-              },
-            },
-          );
+          });
         }}
       />
 
@@ -343,23 +339,10 @@ export function BudgetMonthView({ yearMonth, onYearMonthChange }: BudgetMonthVie
         }}
       />
 
-      <EditLedgerEntryDialog
-        open={editLedgerLine != null}
-        onOpenChange={(open) => !open && setEditLedgerLine(null)}
-        line={editLedgerLine}
-        isPending={updatePosted.isPending}
-        onSubmit={(values) => {
-          if (!editLedgerLine) return;
-          updatePosted.mutate(
-            {
-              id: editLedgerLine.id,
-              date: values.date,
-              amount: values.amount,
-              description: values.description,
-            },
-            { onSuccess: () => setEditLedgerLine(null) },
-          );
-        }}
+      <EditTransactionDialog
+        open={editTransaction != null}
+        onOpenChange={(open) => !open && setEditTransaction(null)}
+        transaction={editTransaction}
       />
 
       <CreateMonthDialog
@@ -450,7 +433,9 @@ function MonthSectionRows({
           </div>
         </TableCell>
       </TableRow>
-      {lines.map((line) => (
+      {lines.map((line) => {
+        const categoryLabel = lineCategoryLabel(line);
+        return (
         <TableRow
           key={line.id}
           className={cn(
@@ -459,29 +444,46 @@ function MonthSectionRows({
           )}
         >
           <TableCell className={compactCell}>
-            <div className="flex min-w-0 flex-col gap-0.5">
-              <span className="truncate text-sm">{line.description}</span>
-              {line.itemType === "fixed_deposit" ? (
+            <div className="flex min-w-0 items-center gap-2">
+              <span className="min-w-0 truncate text-sm font-medium">{line.description}</span>
+              <div className="flex shrink-0 items-center gap-1.5">
+                {categoryLabel ? (
+                  <Badge
+                    variant="outline"
+                    className="px-1.5 py-0 text-[10px] font-normal"
+                  >
+                    {categoryLabel}
+                  </Badge>
+                ) : null}
+                {line.loanPaymentId != null || line.featureCategory === "Loans" ? (
+                  <Badge
+                    variant="secondary"
+                    className="px-1.5 py-0 text-[10px] font-normal"
+                  >
+                    Loan
+                  </Badge>
+                ) : line.itemType === "fixed_deposit" ? (
+                  <Badge
+                    variant="secondary"
+                    className="px-1.5 py-0 text-[10px] font-normal"
+                  >
+                    FD
+                    {line.fixedDepositMaturityMonths
+                      ? ` · ${line.fixedDepositMaturityMonths} mo`
+                      : ""}
+                    {line.fixedDepositInterestRate != null
+                      ? ` · ${line.fixedDepositInterestRate}%`
+                      : ""}
+                    {line.fixedDepositDate ? ` · ${line.fixedDepositDate}` : ""}
+                  </Badge>
+                ) : null}
                 <Badge
-                  variant="secondary"
-                  className="w-fit px-1.5 py-0 text-[10px] font-normal"
+                  variant={statusBadgeVariant(line.status)}
+                  className="px-1.5 py-0 text-[10px] font-normal capitalize"
                 >
-                  FD
-                  {line.fixedDepositMaturityMonths
-                    ? ` · ${line.fixedDepositMaturityMonths} mo`
-                    : ""}
-                  {line.fixedDepositInterestRate != null
-                    ? ` · ${line.fixedDepositInterestRate}%`
-                    : ""}
-                  {line.fixedDepositDate ? ` · ${line.fixedDepositDate}` : ""}
+                  {line.status}
                 </Badge>
-              ) : null}
-              <Badge
-                variant={statusBadgeVariant(line.status)}
-                className="w-fit px-1.5 py-0 text-[10px] font-normal capitalize"
-              >
-                {line.status}
-              </Badge>
+              </div>
             </div>
           </TableCell>
           <TableCell className={cn(compactCell, "text-right")}>
@@ -511,7 +513,7 @@ function MonthSectionRows({
                 </Button>
               </DropdownMenuTrigger>
               <DropdownMenuContent align="end">
-                {line.transactionId ? (
+                {line.status === "paid" ? (
                   <>
                     <DropdownMenuItem onClick={() => onEditLedger(line)}>
                       <Pencil className="mr-2 h-4 w-4" />
@@ -554,7 +556,8 @@ function MonthSectionRows({
             </DropdownMenu>
           </TableCell>
         </TableRow>
-      ))}
+        );
+      })}
     </>
   );
 }

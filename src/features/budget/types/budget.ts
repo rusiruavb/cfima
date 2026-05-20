@@ -44,13 +44,14 @@ export type BudgetLine = {
   itemType?: BudgetItemType;
   savingsBucket?: SavingsBucket;
   featureCategory?: string | null;
+  loanPaymentId?: number | null;
   plannedDate?: string | null;
   fixedDepositDate?: string | null;
   fixedDepositMaturityMonths?: number | null;
   fixedDepositInterestRate?: number | null;
   sortOrder: number;
   status: BudgetLineStatus;
-  transactionId: number | null;
+  entryDate: string | null;
   paidAt: string | null;
 };
 

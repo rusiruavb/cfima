@@ -273,13 +273,20 @@ function SectionRows({
             className={cn(!item.isActive && "opacity-50")}
           >
             <TableCell className={compactCell}>
-              <div className="flex min-w-0 flex-col gap-0.5">
-                <span className="truncate text-sm">{item.description}</span>
-                {meta ? (
-                  <Badge variant="secondary" className="w-fit px-1.5 py-0 text-[10px] font-normal">
-                    {meta}
-                  </Badge>
-                ) : null}
+              <div className="flex min-w-0 items-center gap-2">
+                <span className="min-w-0 truncate text-sm font-medium">{item.description}</span>
+                <div className="flex shrink-0 items-center gap-1.5">
+                  {item.featureCategory?.trim() ? (
+                    <Badge variant="outline" className="px-1.5 py-0 text-[10px] font-normal">
+                      {item.featureCategory}
+                    </Badge>
+                  ) : null}
+                  {meta ? (
+                    <Badge variant="secondary" className="px-1.5 py-0 text-[10px] font-normal">
+                      {meta}
+                    </Badge>
+                  ) : null}
+                </div>
               </div>
             </TableCell>
             <TableCell className={cn(compactCell, "text-right font-mono-numeric text-sm text-muted-foreground")}>

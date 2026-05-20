@@ -21,7 +21,7 @@ export interface TransactionFilters {
   amount: string;
   description: string;
   financeType: string;
-  file: string;
+  category: string;
 }
 
 export interface TransactionSort {
@@ -34,7 +34,7 @@ export const DEFAULT_TRANSACTION_FILTERS: TransactionFilters = {
   amount: "",
   description: "",
   financeType: "",
-  file: "",
+  category: "",
 };
 
 export const DEFAULT_TRANSACTION_SORT: TransactionSort = {
@@ -79,13 +79,8 @@ export function applyTransactionQuery(
     result = result.filter((row) => row.financeType === filters.financeType);
   }
 
-  if (filters.file) {
-    const q = filters.file.toLowerCase();
-    result = result.filter(
-      (row) =>
-        row.fileName.toLowerCase().includes(q) ||
-        row.driveLink.toLowerCase().includes(q),
-    );
+  if (filters.category) {
+    result = result.filter((row) => row.category === filters.category);
   }
 
   result.sort((a, b) => {
@@ -112,6 +107,6 @@ export function countActiveFilters(filters: TransactionFilters): number {
   if (filters.amount) count += 1;
   if (filters.description) count += 1;
   if (filters.financeType) count += 1;
-  if (filters.file) count += 1;
+  if (filters.category) count += 1;
   return count;
 }

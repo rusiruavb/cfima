@@ -1,4 +1,5 @@
 import { Card, CardContent } from "@/components/ui/card";
+import { overviewCardClass } from "@/features/budget/lib/overview-card-styles";
 import type { BudgetTotals } from "@/features/budget/types/budget";
 import { Numeric } from "@/shared/components/numeric";
 import { cn } from "@/shared/lib/utils";
@@ -29,7 +30,7 @@ export function BudgetTotalsBar({ totals }: BudgetTotalsBarProps) {
   ];
 
   return (
-    <Card className="border-primary/20 bg-secondary/30">
+    <Card className={overviewCardClass}>
       <CardContent className="grid grid-cols-3 gap-x-3 gap-y-2 p-3 sm:grid-cols-6 sm:gap-3">
         {items.map((item) => (
           <div key={item.label} className="min-w-0">

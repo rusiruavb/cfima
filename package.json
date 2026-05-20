@@ -11,7 +11,7 @@
     "build": "tsc --noEmit && vite build",
     "dev:electron": "tsup --config tsup.electron.config.ts --watch",
     "dev:desktop": "concurrently -k \"pnpm dev:client\" \"pnpm dev:server\" \"pnpm dev:electron\" \"wait-on http://localhost:5173 && cross-env ELECTRON_RENDERER_URL=http://localhost:5173 node scripts/run-electron.cjs .\"",
-    "build:server": "tsc -p tsconfig.server.build.json && cpy \"server/db/schema.sql\" \"dist-server/db/\" --parents",
+    "build:server": "tsc -p tsconfig.server.build.json && cpy \"server/db/schema.sql\" \"dist-server/db/\" --flat",
     "build:electron": "tsup --config tsup.electron.config.ts",
     "build:desktop": "pnpm build && pnpm build:server && pnpm build:electron",
     "dist": "pnpm build:desktop && electron-builder",
@@ -28,6 +28,7 @@
     "@radix-ui/react-popover": "^1.1.14",
     "@radix-ui/react-select": "^2.2.5",
     "@radix-ui/react-slot": "^1.2.3",
+    "@radix-ui/react-switch": "^1.2.6",
     "@radix-ui/react-tooltip": "^1.2.7",
     "@tanstack/react-query": "^5.80.7",
     "better-sqlite3": "^12.10.0",
@@ -72,7 +73,7 @@
     "concurrently": "^9.1.2",
     "cpy-cli": "^7.0.0",
     "cross-env": "^10.1.0",
-    "electron": "^42.2.0",
+    "electron": "41.7.0",
     "electron-builder": "^26.8.1",
     "eslint": "^9.28.0",
     "eslint-plugin-react-hooks": "^5.2.0",
@@ -90,6 +91,7 @@
   "build": {
     "appId": "com.cfima.desktop",
     "productName": "CFIMA",
+    "icon": "build/icon.png",
     "directories": {
       "output": "release"
     },
@@ -104,6 +106,19 @@
     "asarUnpack": [
       "**/better-sqlite3/**"
     ],
+    "dmg": {
+      "backgroundColor": "#eef5f2",
+      "icon": null,
+      "window": {
+        "width": 540,
+        "height": 380
+      },
+      "iconSize": 80,
+      "contents": [
+        { "x": 130, "y": 220, "type": "file" },
+        { "x": 410, "y": 220, "type": "link", "path": "/Applications" }
+      ]
+    },
     "mac": {
       "target": [
         "dmg"

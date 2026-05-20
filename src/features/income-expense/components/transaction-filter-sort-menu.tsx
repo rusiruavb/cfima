@@ -22,6 +22,7 @@ import {
   type TransactionFilters,
   type TransactionSort,
 } from "@/features/income-expense/lib/transaction-table-query";
+import { TRANSACTION_CATEGORIES } from "@/features/income-expense/schemas/transaction-schema";
 import { FINANCE_TYPES } from "@/shared/constants/sheets";
 import { DatePickerField } from "@/shared/components/date-picker-field";
 import { cn } from "@/shared/lib/utils";
@@ -243,14 +244,25 @@ export function TransactionFilterSortMenu({
           </div>
 
           <div className="space-y-1.5">
-            <Label htmlFor="filter-file">Attached file</Label>
-            <Input
-              id="filter-file"
-              placeholder="Contains…"
-              className="h-9 text-sm"
-              value={filters.file}
-              onChange={(e) => patchFilters({ file: e.target.value })}
-            />
+            <Label htmlFor="filter-category">Category</Label>
+            <Select
+              value={filters.category || "all"}
+              onValueChange={(value) =>
+                patchFilters({ category: value === "all" ? "" : value })
+              }
+            >
+              <SelectTrigger id="filter-category" className="h-9">
+                <SelectValue placeholder="All categories" />
+              </SelectTrigger>
+              <SelectContent>
+                <SelectItem value="all">All categories</SelectItem>
+                {TRANSACTION_CATEGORIES.map((c) => (
+                  <SelectItem key={c} value={c}>
+                    {c}
+                  </SelectItem>
+                ))}
+              </SelectContent>
+            </Select>
           </div>
         </section>
 
