@@ -6,11 +6,16 @@
   "main": "dist-electron/main.cjs",
   "scripts": {
     "dev": "concurrently \"pnpm dev:client\" \"pnpm dev:server\"",
+    "predev": "pnpm rebuild:native:node",
     "dev:client": "vite",
     "dev:server": "tsx watch server/index.ts",
+    "rebuild:native:node": "pnpm rebuild better-sqlite3",
+    "rebuild:native:electron": "electron-rebuild -f -w better-sqlite3",
     "build": "tsc --noEmit && vite build",
     "dev:electron": "tsup --config tsup.electron.config.ts --watch",
+    "predev:desktop": "pnpm rebuild:native:node",
     "dev:desktop": "concurrently -k \"pnpm dev:client\" \"pnpm dev:server\" \"pnpm dev:electron\" \"wait-on http://localhost:5173 && cross-env ELECTRON_RENDERER_URL=http://localhost:5173 node scripts/run-electron.cjs .\"",
+    "prebuild:desktop": "pnpm rebuild:native:electron",
     "build:server": "tsc -p tsconfig.server.build.json && cpy \"server/db/schema.sql\" \"dist-server/db/\" --flat",
     "build:electron": "tsup --config tsup.electron.config.ts",
     "build:desktop": "pnpm build && pnpm build:server && pnpm build:electron",
@@ -62,6 +67,7 @@
     ]
   },
   "devDependencies": {
+    "@electron/rebuild": "^4.0.4",
     "@eslint/js": "^9.28.0",
     "@types/better-sqlite3": "^7.6.13",
     "@types/cors": "^2.8.18",
